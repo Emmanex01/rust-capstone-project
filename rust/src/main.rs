@@ -34,6 +34,33 @@ fn send(rpc: &Client, addr: &str) -> bitcoincore_rpc::Result<String> {
     Ok(send_result.txid)
 }
 
+// Helper function
+fn create_or_load_wallet(rpc: &Client, wallet_name: &str) -> bitcoincore_rpc::Result<()> {
+        // check if the wallet is loaded before
+        if rpc.list_wallets()?.contains(&wallet_name.to_string()) {
+            println!("wallet {} is already loaded", wallet_name)
+            return Ok(());
+        }
+
+        // if it is not loaded before
+        match rpc.load_wallet(wallet_name) {
+            Ok(_) => {
+                    println!("Successfully loaded existing wallet '{}' from disk.", wallet_name);
+                    Ok(())
+                }
+            // If loading fails because it doesn't exist, create it.
+            Err(RpcError::JsonRpc(json_rpc::Error{code: -18, ..})) => {
+                println!("Wallet '{}' not found on disk. Creating a new one.", wallet_name);
+                rpc.create_wallet(wallet_name, None, None, None, None)?;
+                println!("Wallet '{}' created successfully.", wallet_name);
+                Ok(())
+            }
+
+             // Handle other potential errors during loading.
+            Err(e) => Err(e)
+        }
+    }
+
 fn main() -> bitcoincore_rpc::Result<()> {
     // Connect to Bitcoin Core RPC
     let rpc = Client::new(
@@ -46,6 +73,11 @@ fn main() -> bitcoincore_rpc::Result<()> {
     println!("Blockchain Info: {:?}", blockchain_info);
 
     // Create/Load the wallets, named 'Miner' and 'Trader'. Have logic to optionally create/load them if they do not exist or not loaded already.
+    let miner_wallet_name = "Miner";
+    let trader_wallet_name = "Trader";
+    create_or_load_wallet(&rpc, miner_wallet_name)?;
+    create_or_load_wallet(&rpc, trader_wallet_name)?;
+
 
     // Generate spendable balances in the Miner wallet. How many blocks needs to be mined?
 
